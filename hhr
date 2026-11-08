@@ -1,0 +1,664 @@
+--// Servicios necesarios
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+--// Destruir GUI anterior si ya existe
+if player.PlayerGui:FindFirstChild("UniversalHubGui") then
+	player.PlayerGui.UniversalHubGui:Destroy()
+end
+
+--// Crear ScreenGui Principal
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "UniversalHubGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player.PlayerGui
+
+--// 1. Icono Flotante (Se muestra cuando se cierra la UI)
+local openIcon = Instance.new("ImageButton")
+openIcon.Name = "OpenIcon"
+openIcon.Size = UDim2.new(0, 50, 0, 50)
+openIcon.Position = UDim2.new(0, 20, 0.5, -25)
+openIcon.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+openIcon.Image = "rbxassetid://6031094678"
+openIcon.Visible = false
+openIcon.Parent = screenGui
+
+local iconCorner = Instance.new("UICorner")
+iconCorner.CornerRadius = UDim.new(1, 0)
+iconCorner.Parent = openIcon
+
+--// 2. Ventana Principal (Steven Hook Universal)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 480, 0, 340)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 14)
+mainCorner.Parent = mainFrame
+
+--// Animación de Apertura inicial (De chiquito a grande y subiendo)
+mainFrame.Size = UDim2.new(0, 0, 0, 0)
+local openTween = TweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+	Size = UDim2.new(0, 480, 0, 340)
+})
+openTween:Play()
+
+--// Barra Superior (Título y Botón Cerrar perfectamente posicionado)
+local topBar = Instance.new("Frame")
+topBar.Size = UDim2.new(1, 0, 0, 45)
+topBar.BackgroundColor3 = Color3.fromRGB(24, 24, 35)
+topBar.BorderSizePixel = 0
+topBar.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -60, 1, 0)
+titleLabel.Position = UDim2.new(0, 15, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "🌟 Steven Hook Universal"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 15
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = topBar
+
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 32, 0, 32)
+closeButton.AnchorPoint = Vector2.new(1, 0.5)
+closeButton.Position = UDim2.new(1, -12, 0.5, 0)
+closeButton.BackgroundColor3 = Color3.fromRGB(235, 65, 65)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = 14
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Parent = topBar
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = closeButton
+
+--// Contenedor de Pestañas (Sidebar Izquierdo)
+local sidebar = Instance.new("ScrollingFrame")
+sidebar.Size = UDim2.new(0, 130, 1, -45)
+sidebar.Position = UDim2.new(0, 0, 0, 45)
+sidebar.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+sidebar.BorderSizePixel = 0
+sidebar.CanvasSize = UDim2.new(0, 0, 0, 190)
+sidebar.ScrollBarThickness = 2
+sidebar.Parent = mainFrame
+
+local sidebarLayout = Instance.new("UIListLayout")
+sidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
+sidebarLayout.Padding = UDim.new(0, 6)
+sidebarLayout.Parent = sidebar
+
+local sPadding = Instance.new("UIPadding")
+sPadding.PaddingTop = UDim.new(0, 8)
+sPadding.PaddingLeft = UDim.new(0, 8)
+sPadding.PaddingRight = UDim.new(0, 8)
+sPadding.Parent = sidebar
+
+--// Contenedor de Contenido (Paneles a la derecha)
+local contentContainer = Instance.new("Frame")
+contentContainer.Size = UDim2.new(1, -130, 1, -45)
+contentContainer.Position = UDim2.new(0, 130, 0, 45)
+contentContainer.BackgroundTransparency = 1
+contentContainer.Parent = mainFrame
+
+--// Sistema de Pestañas
+local tabs = {}
+local currentTab = nil
+
+local function createTabButton(name, id)
+	local tabBtn = Instance.new("TextButton")
+	tabBtn.Size = UDim2.new(1, 0, 0, 36)
+	tabBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 36)
+	tabBtn.Text = "  " .. name
+	tabBtn.TextColor3 = Color3.fromRGB(170, 170, 190)
+	tabBtn.TextSize = 13
+	tabBtn.Font = Enum.Font.GothamMedium
+	tabBtn.TextXAlignment = Enum.TextXAlignment.Left
+	tabBtn.Parent = sidebar
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = tabBtn
+
+	local tabContent = Instance.new("ScrollingFrame")
+	tabContent.Size = UDim2.new(1, 0, 1, 0)
+	tabContent.BackgroundTransparency = 1
+	tabContent.CanvasSize = UDim2.new(0, 0, 0, 550)
+	tabContent.ScrollBarThickness = 4
+	tabContent.Visible = false
+	tabContent.Parent = contentContainer
+
+	local contentLayout = Instance.new("UIListLayout")
+	contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	contentLayout.Padding = UDim.new(0, 10)
+	contentLayout.Parent = tabContent
+
+	local contentPadding = Instance.new("UIPadding")
+	contentPadding.PaddingTop = UDim.new(0, 12)
+	contentPadding.PaddingLeft = UDim.new(0, 12)
+	contentPadding.PaddingRight = UDim.new(0, 12)
+	contentPadding.Parent = tabContent
+
+	tabs[id] = {Button = tabBtn, Content = tabContent}
+
+	tabBtn.MouseButton1Click:Connect(function()
+		for _, t in pairs(tabs) do
+			t.Content.Visible = false
+			t.Button.BackgroundColor3 = Color3.fromRGB(25, 25, 36)
+			t.Button.TextColor3 = Color3.fromRGB(170, 170, 190)
+		end
+		tabContent.Visible = true
+		tabBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
+		tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		currentTab = id
+	end)
+
+	if not currentTab then
+		tabContent.Visible = true
+		tabBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 70)
+		tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		currentTab = id
+	end
+end
+
+--// Creador de Botones Toggle estándar
+local function createButtonInTab(tabId, name, callback)
+	local targetTab = tabs[tabId].Content
+	
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, -10, 0, 42)
+	btn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+	btn.Text = "  " .. name
+	btn.TextColor3 = Color3.fromRGB(220, 220, 240)
+	btn.TextSize = 13
+	btn.Font = Enum.Font.GothamMedium
+	btn.TextXAlignment = Enum.TextXAlignment.Left
+	btn.Parent = targetTab
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = btn
+
+	local activeIndicator = Instance.new("Frame")
+	activeIndicator.Size = UDim2.new(0, 8, 0, 18)
+	activeIndicator.Position = UDim2.new(1, -16, 0.5, -9)
+	activeIndicator.BackgroundColor3 = Color3.fromRGB(90, 90, 110)
+	activeIndicator.Parent = btn
+
+	local indCorner = Instance.new("UICorner")
+	indCorner.CornerRadius = UDim.new(1, 0)
+	indCorner.Parent = activeIndicator
+
+	local toggled = false
+	btn.MouseButton1Click:Connect(function()
+		toggled = not toggled
+		if toggled then
+			activeIndicator.BackgroundColor3 = Color3.fromRGB(75, 255, 75)
+		else
+			activeIndicator.BackgroundColor3 = Color3.fromRGB(90, 90, 110)
+		end
+		callback(toggled, activeIndicator)
+	end)
+end
+
+--// Creador de Botones de Acción Estándar
+local function createActionInTab(tabId, name, callback)
+	local targetTab = tabs[tabId].Content
+	
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, -10, 0, 42)
+	btn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+	btn.Text = "  " .. name
+	btn.TextColor3 = Color3.fromRGB(220, 220, 240)
+	btn.TextSize = 13
+	btn.Font = Enum.Font.GothamMedium
+	btn.TextXAlignment = Enum.TextXAlignment.Left
+	btn.Parent = targetTab
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = btn
+
+	btn.MouseButton1Click:Connect(function()
+		callback()
+	end)
+end
+
+--// Crear las Pestañas (Apartado 1, 2, 3 y Configuración)
+createTabButton("Apartado 1", "tab1")
+createTabButton("Apartado 2", "tab2")
+createTabButton("Apartado 3", "tab3")
+createTabButton("Configuración", "tabConfig")
+
+--// ================= CÓDIGO DE LAS FUNCIONES =================
+
+-- [APARTADO 1] Super Velocidad
+createButtonInTab("tab1", "Super Velocidad", function(enabled)
+	local char = player.Character
+	if char and char:FindFirstChild("Humanoid") then
+		char.Humanoid.WalkSpeed = enabled and 65 or 16
+	end
+end)
+
+-- [APARTADO 1] Supersalto
+createButtonInTab("tab1", "Supersalto", function(enabled)
+	local char = player.Character
+	if char and char:FindFirstChild("Humanoid") then
+		char.Humanoid.UseJumpPower = true
+		char.Humanoid.JumpPower = enabled and 120 or 50
+	end
+end)
+
+-- [APARTADO 1] Salto Infinito
+local infJumpEnabled = false
+UserInputService.JumpRequest:Connect(function()
+	if infJumpEnabled and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+		player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+	end
+end)
+createButtonInTab("tab1", "Salto Infinito", function(enabled)
+	infJumpEnabled = enabled
+end)
+
+-- [APARTADO 1] Rayos X
+local originalTransparencies = {}
+createButtonInTab("tab1", "Rayos X", function(enabled)
+	if enabled then
+		for _, obj in ipairs(Workspace:GetDescendants()) do
+			if obj:IsA("BasePart") and not obj:IsDescendantOf(player.Character) then
+				if originalTransparencies[obj] == nil then
+					originalTransparencies[obj] = obj.Transparency
+				end
+				obj.Transparency = 0.65
+			end
+		end
+	else
+		for obj, trans in pairs(originalTransparencies) do
+			if obj and obj.Parent then
+				obj.Transparency = trans
+			end
+		end
+		originalTransparencies = {}
+	end
+end)
+
+-- [APARTADO 1] Atravesar Paredes (Noclip Inmediato)
+local noclipConnection
+createButtonInTab("tab1", "Atravesar Paredes (Noclip)", function(enabled)
+	if enabled then
+		noclipConnection = RunService.Stepped:Connect(function()
+			local char = player.Character
+			if char then
+				for _, part in ipairs(char:GetDescendants()) do
+					if part:IsA("BasePart") then
+						part.CanCollide = false
+					end
+				end
+			end
+		end)
+	else
+		if noclipConnection then
+			noclipConnection:Disconnect()
+			noclipConnection = nil
+		end
+		local char = player.Character
+		if char then
+			for _, part in ipairs(char:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = true
+				end
+			end
+		end
+	end
+end)
+
+-- [APARTADO 1] Spider-Man (Escalar paredes)
+local spiderConnection
+createButtonInTab("tab1", "Spider-Man (Escalar Paredes)", function(enabled)
+	if enabled then
+		spiderConnection = RunService.Stepped:Connect(function()
+			local char = player.Character
+			if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+				local hrp = char.HumanoidRootPart
+				local ray = Ray.new(hrp.Position, hrp.CFrame.LookVector * 2.5)
+				local hit = Workspace:FindPartOnRayWithIgnoreList(ray, {char})
+				if hit then
+					char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+					hrp.Velocity = Vector3.new(hrp.Velocity.X, 35, hrp.Velocity.Z)
+				end
+			end
+		end)
+	else
+		if spiderConnection then
+			spiderConnection:Disconnect()
+			spiderConnection = nil
+		end
+	end
+end)
+
+-- [APARTADO 1] Plataforma 1 (Ascensor estático debajo de ti)
+local platform1Part = nil
+local platform1Connection = nil
+createButtonInTab("tab1", "Plataforma 1 (Ascensor)", function(enabled)
+	if enabled then
+		platform1Part = Instance.new("Part")
+		platform1Part.Size = Vector3.new(4, 0.6, 4)
+		platform1Part.Anchored = true
+		platform1Part.Transparency = 0.2
+		platform1Part.BrickColor = BrickColor.new("Bright blue")
+		platform1Part.Material = Enum.Material.Neon
+		platform1Part.Parent = Workspace
+
+		platform1Connection = RunService.RenderStepped:Connect(function()
+			local char = player.Character
+			if char and char:FindFirstChild("HumanoidRootPart") then
+				platform1Part.CFrame = char.HumanoidRootPart.CFrame * CFrame.new(0, -3.5, 0)
+			end
+		end)
+	else
+		if platform1Connection then
+			platform1Connection:Disconnect()
+			platform1Connection = nil
+		end
+		if platform1Part then
+			platform1Part.Parent = nil
+			platform1Part = nil
+		end
+	end
+end)
+
+-- [APARTADO 1] Ver Nombre de Jugadores (Más grande, blanco y oculta el nombre nativo de Roblox)
+local espNamesEnabled = false
+local espBillboards = {}
+local robloxDisplays = {}
+
+local function createNameTag(p)
+	if p == player then return end
+	
+	p.CharacterAdded:Connect(function(char)
+		local humanoid = char:WaitForChild("Humanoid", 5)
+		if humanoid then
+			humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+			robloxDisplays[p] = humanoid
+		end
+	end)
+	if p.Character then
+		local humanoid = p.Character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+			robloxDisplays[p] = humanoid
+		end
+	end
+
+	local function onCharacter(char)
+		if not espNamesEnabled then return end
+		local head = char:WaitForChild("Head", 5)
+		if head and not head:FindFirstChild("UniversalEspTag") then
+			local billboard = Instance.new("BillboardGui")
+			billboard.Name = "UniversalEspTag"
+			billboard.Size = UDim2.new(0, 220, 0, 60)
+			billboard.StudsOffset = Vector3.new(0, 3.2, 0)
+			billboard.AlwaysOnTop = true
+			billboard.Parent = head
+
+			local textLabel = Instance.new("TextLabel")
+			textLabel.Size = UDim2.new(1, 0, 1, 0)
+			textLabel.BackgroundTransparency = 1
+			textLabel.Text = p.Name
+			textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			textLabel.TextStrokeTransparency = 0.1
+			textLabel.TextSize = 22
+			textLabel.Font = Enum.Font.GothamBold
+			textLabel.Parent = billboard
+
+			espBillboards[p] = billboard
+		end
+	end
+	
+	if p.Character then
+		onCharacter(p.Character)
+	end
+	p.CharacterAdded:Connect(onCharacter)
+end
+
+local function removeNameTag(p)
+	if espBillboards[p] then
+		espBillboards[p]:Destroy()
+		espBillboards[p] = nil
+	end
+	if robloxDisplays[p] and robloxDisplays[p].Parent then
+		robloxDisplays[p].DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
+		robloxDisplays[p] = nil
+	end
+end
+
+createButtonInTab("tab1", "Ver Nombre de Jugadores", function(enabled)
+	espNamesEnabled = enabled
+	if enabled then
+		for _, p in ipairs(Players:GetPlayers()) do
+			createNameTag(p)
+		end
+	else
+		for _, p in ipairs(Players:GetPlayers()) do
+			removeNameTag(p)
+		end
+	end
+end)
+
+Players.PlayerAdded:Connect(function(p)
+	if espNamesEnabled then
+		createNameTag(p)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+	removeNameTag(p)
+end)
+
+
+-- ==========================================================
+-- [APARTADO 2]
+-- ==========================================================
+
+-- 1. Fly
+createActionInTab("tab2", "Fly", function()
+	pcall(function()
+		loadstring(game:HttpGet("https://scriptblox.com/raw/Universal-Script-Flyv2-30617"))()
+	end)
+end)
+
+-- 2. Aimbot Automático
+local aimbotEnabled = false
+createButtonInTab("tab2", "Aimbot Automático", function(enabled)
+	aimbotEnabled = enabled
+end)
+
+RunService.RenderStepped:Connect(function()
+	if aimbotEnabled then
+		local closestPlayer = nil
+		local shortestDistance = math.huge
+		local myChar = player.Character
+		
+		if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+			local myPos = myChar.HumanoidRootPart.Position
+			
+			for _, otherPlayer in ipairs(Players:GetPlayers()) do
+				if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") and otherPlayer.Character:FindFirstChild("Humanoid") and otherPlayer.Character.Humanoid.Health > 0 then
+					local targetPart = otherPlayer.Character:FindFirstChild("Head") or otherPlayer.Character.HumanoidRootPart
+					local distance = (targetPart.Position - myPos).Magnitude
+					
+					if distance < shortestDistance then
+						shortestDistance = distance
+						closestPlayer = targetPart
+					end
+				end
+			end
+			
+			if closestPlayer then
+				camera.CFrame = CFrame.new(camera.CFrame.Position, closestPlayer.Position)
+			end
+		end
+	end
+end)
+
+-- 3. Ver jugadores a través de las paredes (Rojos / Chams en vivo)
+local espRedEnabled = false
+local espHighlights = {}
+
+local function addHighlight(p)
+	if p == player then return end
+	local function onCharacter(char)
+		if not espRedEnabled then return end
+		if not char:FindFirstChild("UniversalHighlight") then
+			local highlight = Instance.new("Highlight")
+			highlight.Name = "UniversalHighlight"
+			highlight.Adornee = char
+			highlight.FillColor = Color3.fromRGB(255, 0, 0)
+			highlight.FillTransparency = 0.3
+			highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+			highlight.OutlineTransparency = 0
+			highlight.Parent = char
+			espHighlights[p] = highlight
+		end
+	end
+	if p.Character then
+		onCharacter(p.Character)
+	end
+	p.CharacterAdded:Connect(onCharacter)
+end
+
+local function removeHighlight(p)
+	if espHighlights[p] then
+		espHighlights[p]:Destroy()
+		espHighlights[p] = nil
+	end
+end
+
+createButtonInTab("tab2", "Ver Jugadores por Paredes (Rojo)", function(enabled)
+	espRedEnabled = enabled
+	if enabled then
+		for _, p in ipairs(Players:GetPlayers()) do
+			addHighlight(p)
+		end
+	else
+		for _, p in ipairs(Players:GetPlayers()) do
+			removeHighlight(p)
+		end
+	end
+end)
+
+Players.PlayerAdded:Connect(function(p)
+	if espRedEnabled then
+		addHighlight(p)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+	removeHighlight(p)
+end)
+
+-- 4. Guardar Posición
+local savedPosition = nil
+createActionInTab("tab2", "Guardar Posición", function()
+	local char = player.Character
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		savedPosition = char.HumanoidRootPart.CFrame
+		titleLabel.Text = "🌟 Posición Guardada"
+		task.wait(1.5)
+		titleLabel.Text = "🌟 Steven Hook Universal"
+	end
+end)
+
+-- 5. Ir a Posición
+createActionInTab("tab2", "Ir a Posición", function()
+	if savedPosition then
+		local char = player.Character
+		if char and char:FindFirstChild("HumanoidRootPart") then
+			char.HumanoidRootPart.CFrame = savedPosition
+		end
+	end
+end)
+
+-- 6. Plataforma 2 (Estela Dinámica al moverte)
+local platform2Enabled = false
+createButtonInTab("tab2", "Plataforma 2 (Estela Dinámica)", function(enabled)
+	platform2Enabled = enabled
+	task.spawn(function()
+		while platform2Enabled do
+			local char = player.Character
+			if char and char:FindFirstChild("HumanoidRootPart") then
+				local hrp = char.HumanoidRootPart
+				local stepPart = Instance.new("Part")
+				stepPart.Size = Vector3.new(3, 0.5, 3)
+				stepPart.Position = hrp.Position - Vector3.new(0, 3.2, 0)
+				stepPart.Anchored = true
+				stepPart.CanCollide = true
+				stepPart.BrickColor = BrickColor.new("Lime green")
+				stepPart.Material = Enum.Material.Neon
+				stepPart.Parent = Workspace
+				
+				task.delay(2.5, function()
+					if stepPart then
+						stepPart:Destroy()
+					end
+				end)
+			end
+			task.wait(0.3)
+		end
+	end)
+end)
+
+
+-- ==========================================================
+-- [APARTADO 3] (Lista de jugadores y teletransporte instantáneo)
+-- ==========================================================
+local tab3Content = tabs["tab3"].Content
+
+local playerButtons = {}
+
+local function updatePlayerList()
+	-- Limpiar botones anteriores
+	for _, btn in pairs(playerButtons) do
+		if btn and btn.Parent then
+			btn:Destroy()
+		end
+	end
+	playerButtons = {}
+
+	-- Crear un botón por cada jugador en el servidor
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= player then
+			local btn = Instance.new("TextButton")
+			btn.Size = UDim2.new(1, -10, 0, 42)
+			btn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+			btn.Text = "  🎯 TP a: " .. p.Name
+			btn.TextColor3 = Color3.fromRGB(220, 220, 240)
+			btn.TextSize = 13
+			btn.Font = Enum.Font.GothamMedium
+			btn.TextXAlignment = Enum.TextXAlignment.Left
+			btn.Parent = tab3Content
+
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0, 8)
+			corner.Parent = btn
+
+			-- Al dar clic, teletransportarse a la posición del jugador
+			btn.MouseButton1Click:Connect(function()
+				local targetChar = p.Character
+				local myChar = player.Character
+				if targetChar
